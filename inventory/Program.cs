@@ -13,8 +13,8 @@ namespace inventory
 
         static async Task Main()
         {
-            // Replace with your bot token
-            botClient = new TelegramBotClient("7469215645:AAHLZIyhPeS1YJInXiwZkd827VHcVZX3-Eg");
+            var botToken = Environment.GetEnvironmentVariable("Inventory_bot_token");
+            botClient = new TelegramBotClient(botToken);
 
             var me = await botClient.GetMeAsync();
             Console.WriteLine($"Hello, World! I am user {me.Id} and my name is {me.FirstName}.");
