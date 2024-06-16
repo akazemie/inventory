@@ -14,7 +14,7 @@ namespace inventory
         static async Task Main()
         {
             var botToken = Environment.GetEnvironmentVariable("Inventory_bot_token");
-            botClient = new TelegramBotClient(botToken);
+            botClient = new TelegramBotClient(botToken!);
 
             var me = await botClient.GetMeAsync();
             Console.WriteLine($"Hello, World! I am user {me.Id} and my name is {me.FirstName}.");
@@ -34,7 +34,7 @@ namespace inventory
 
         static async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
         {
-            if (update.Type == UpdateType.Message && update.Message.Type == MessageType.Text)
+            if (update.Type == UpdateType.Message && update.Message?.Type == MessageType.Text)
             {
                 await HandleMessageAsync(botClient, update.Message, cancellationToken);
             }
@@ -50,47 +50,107 @@ namespace inventory
             {
                 var inlineKeyboard = new InlineKeyboardMarkup(new[]
                 {
-                new []
-                {
-                    InlineKeyboardButton.WithCallbackData("Show list", "show_list"),
-                    InlineKeyboardButton.WithCallbackData("Add to Inventory", "add_inventory"),
-                },
-                new []
-                {
-                    InlineKeyboardButton.WithCallbackData("Edit Inventory", "edit_inventory"),
-                    InlineKeyboardButton.WithCallbackData("Delete Inventory", "delete_inventory"),
-                }
+                    new []
+                    {
+                        InlineKeyboardButton.WithCallbackData("Item management", "item_management"),
+                        InlineKeyboardButton.WithCallbackData("Inventory management", "inventory_management"),
+                    }
                 });
 
                 await botClient.SendTextMessageAsync(
-                    chatId: message.Chat.Id,
-                    text: "Choose an option:",
-                    replyMarkup: inlineKeyboard,
-                    cancellationToken: cancellationToken
-                );
+                        chatId: message.Chat.Id,
+                        text: "Choose an option:",
+                        replyMarkup: inlineKeyboard,
+                        cancellationToken: cancellationToken
+                    );
             }
         }
 
         static async Task HandleCallbackQueryAsync(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken)
         {
-            string response = callbackQuery.Data switch
-            {
-                "show_list" => "You clicked 'Show list'.",
-                "add_inventory" => "You clicked 'Add to Inventory'.",
-                "edit_inventory" => "You clicked 'Edit Inventory'.",
-                "delete_inventory" => "You clicked 'Delete Inventory'.",
-                _ => "Unknown action"
-            };
+            InlineKeyboardMarkup inlineKeyboard = null;
 
+            switch (callbackQuery.Data)
+            {
+                case "item_management":
+                    inlineKeyboard = new InlineKeyboardMarkup(new[]
+                    {
+                    new []
+                    {
+                        InlineKeyboardButton.WithCallbackData("Items list", "items_list"),
+                        InlineKeyboardButton.WithCallbackData("Add Item", "add_item"),
+                    }
+                });
+                    await botClient.SendTextMessageAsync(
+                        chatId: callbackQuery.Message.Chat.Id,
+                        text: "Item Management:",
+                        replyMarkup: inlineKeyboard,
+                        cancellationToken: cancellationToken
+                    );
+                    break;
+
+                case "inventory_management":
+                    inlineKeyboard = new InlineKeyboardMarkup(new[]
+                    {
+                    new []
+                    {
+                        InlineKeyboardButton.WithCallbackData("Stockroom Items", "stockroom_items"),
+                        InlineKeyboardButton.WithCallbackData("Add to stockroom", "add_to_stockroom"),
+                    }
+                });
+                    await botClient.SendTextMessageAsync(
+                        chatId: callbackQuery.Message.Chat.Id,
+                        text: "Inventory Management:",
+                        replyMarkup: inlineKeyboard,
+                        cancellationToken: cancellationToken
+                    );
+                    break;
+
+                case "items_list":
+                    await botClient.SendTextMessageAsync(
+                        chatId: callbackQuery.Message.Chat.Id,
+                        text: "You clicked 'Items list'.",
+                        cancellationToken: cancellationToken
+                    );
+                    break;
+
+                case "add_item":
+                    await botClient.SendTextMessageAsync(
+                        chatId: callbackQuery.Message.Chat.Id,
+                        text: "You clicked 'Add Item'.",
+                        cancellationToken: cancellationToken
+                    );
+                    break;
+
+                case "stockroom_items":
+                    await botClient.SendTextMessageAsync(
+                        chatId: callbackQuery.Message.Chat.Id,
+                        text: "You clicked 'Stockroom Items'.",
+                        cancellationToken: cancellationToken
+                    );
+                    break;
+
+                case "add_to_stockroom":
+                    await botClient.SendTextMessageAsync(
+                        chatId: callbackQuery.Message.Chat.Id,
+                        text: "You clicked 'Add to stockroom'.",
+                        cancellationToken: cancellationToken
+                    );
+                    break;
+
+                default:
+                    await botClient.SendTextMessageAsync(
+                        chatId: callbackQuery.Message.Chat.Id,
+                        text: "Unknown action",
+                        cancellationToken: cancellationToken
+                    );
+                    break;
+            }
+
+            // Acknowledge the callback query
             await botClient.AnswerCallbackQueryAsync(
                 callbackQueryId: callbackQuery.Id,
                 text: "Processing your request...",
-                cancellationToken: cancellationToken
-            );
-
-            await botClient.SendTextMessageAsync(
-                chatId: callbackQuery.Message.Chat.Id,
-                text: response,
                 cancellationToken: cancellationToken
             );
         }
