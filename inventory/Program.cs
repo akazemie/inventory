@@ -1,7 +1,9 @@
 ﻿using Telegram.Bot;
+using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace inventory
 {
@@ -32,28 +34,76 @@ namespace inventory
 
         static async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
         {
-            // Only process Message updates
-            if (update.Type != UpdateType.Message)
-                return;
-
-            var message = update.Message;
-
-            if (message.Type == MessageType.Text)
+            if (update.Type == UpdateType.Message && update.Message.Type == MessageType.Text)
             {
-                Console.WriteLine($"Received a text message from {message.Chat.FirstName}: {message.Text}");
+                await HandleMessageAsync(botClient, update.Message, cancellationToken);
+            }
+            else if (update.Type == UpdateType.CallbackQuery)
+            {
+                await HandleCallbackQueryAsync(botClient, update.CallbackQuery, cancellationToken);
+            }
+        }
+
+        static async Task HandleMessageAsync(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
+        {
+            if (message.Text == "/start")
+            {
+                var inlineKeyboard = new InlineKeyboardMarkup(new[]
+                {
+                new []
+                {
+                    InlineKeyboardButton.WithCallbackData("Show list", "show_list"),
+                    InlineKeyboardButton.WithCallbackData("Add to Inventory", "add_inventory"),
+                },
+                new []
+                {
+                    InlineKeyboardButton.WithCallbackData("Edit Inventory", "edit_inventory"),
+                    InlineKeyboardButton.WithCallbackData("Delete Inventory", "delete_inventory"),
+                }
+                });
 
                 await botClient.SendTextMessageAsync(
-                    chatId: message.Chat,
-                    text: "You said:\n" + message.Text,
+                    chatId: message.Chat.Id,
+                    text: "Choose an option:",
+                    replyMarkup: inlineKeyboard,
                     cancellationToken: cancellationToken
                 );
             }
         }
 
+        static async Task HandleCallbackQueryAsync(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken)
+        {
+            string response = callbackQuery.Data switch
+            {
+                "show_list" => "You clicked 'Show list'.",
+                "add_inventory" => "You clicked 'Add to Inventory'.",
+                "edit_inventory" => "You clicked 'Edit Inventory'.",
+                "delete_inventory" => "You clicked 'Delete Inventory'.",
+                _ => "Unknown action"
+            };
+
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQueryId: callbackQuery.Id,
+                text: "Processing your request...",
+                cancellationToken: cancellationToken
+            );
+
+            await botClient.SendTextMessageAsync(
+                chatId: callbackQuery.Message.Chat.Id,
+                text: response,
+                cancellationToken: cancellationToken
+            );
+        }
+
         static Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
         {
-            // Log the error
-            Console.WriteLine(exception.ToString());
+            var errorMessage = exception switch
+            {
+                ApiRequestException apiRequestException => $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}",
+                _ => exception.ToString()
+            };
+
+            Console.WriteLine(errorMessage);
             return Task.CompletedTask;
         }
     }
